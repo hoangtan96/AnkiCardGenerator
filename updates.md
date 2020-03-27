@@ -1,6 +1,9 @@
+#27-28/3/2020:
+- Update function: Import content to dictionary
+
 #26-27/3/2020:
 - Update web structure
-- Update scraping online dictionary with web structure
+- Update function scraping online dictionary with web structure
 
 #26/3/2020:
 - Create initial file

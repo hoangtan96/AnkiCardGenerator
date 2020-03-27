@@ -99,7 +99,7 @@ AddNotes_json = {
                 "Back": "back content"
             },
             "options": {
-                "allowDuplicate": false
+                "allowDuplicate": False
             },
             "tags": [
                 "yomichan"
