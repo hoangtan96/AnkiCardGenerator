@@ -49,10 +49,12 @@ Output_dict = {}
 #function macro_FindElement(element): Use for macro a dulicate function
 def FindElement(soup_url,object_name,type_name,id_name):
     return soup_url.find(object_name, attrs= {type_name : id_name})
+def FindExactElement(soup_url,object_name,type_name,id_name):
+    return soup_url.find(lambda tag: tag.name == object_name and tag.get(type_name) == [id_name])
 def FindAllElements(soup_url,object_name,type_name,id_name):
     return soup_url.find_all(object_name, attrs= {type_name : id_name})
 
-DictionaryOnline_url = "https://dictionary.cambridge.org/dictionary/english/something"
+DictionaryOnline_url = "https://dictionary.cambridge.org/dictionary/english/bunk"
 
 #Get data from URL
 RequestURL = requests.get(DictionaryOnline_url)    
@@ -77,7 +79,7 @@ def ScrapingData(URL, Output_dict):
         #Create empty dictionary 
         Output_dict[cid_body] = {}
         GetHeader(EntryWord_singleitem, Output_dict[cid_body])
-        # GetBody(EntryWord_singleitem, Output_dict, cid_body)
+        GetBody(EntryWord_singleitem, Output_dict[cid_body])
         # Output_dict[cid_body] = cid_body_dictionary
 
 #----------------------------------------------------------------------------------------------------------------------------#
@@ -85,36 +87,40 @@ def ScrapingData(URL, Output_dict):
 #Include Word, parts of speech, sound, phonetic symbol
 def GetHeader(EntryWord_singleitem, cid_body):
     print("-------------------------------------------------------------------------------------")
-    print("---Header step---")
+    print("===---Header step---===")
     Headerdata = FindElement(EntryWord_singleitem,"div", "class","pos-header dpos-h")
     #Get Word name
     Word_name = FindElement(Headerdata, "span", "class", "hw dhw").text
-    print("Get word successfully: " + Word_name)
+    cid_body["Word"] = Word_name
+    print("Added word : " + Word_name)
     #Get Parts of Speech
     PartsOfSpeech_name = FindElement(Headerdata, "span", "class", "pos dpos").text
-    print("Get PartsOfSpeech successfully: " + PartsOfSpeech_name)
     #After collecting all data, add it to dictionary 
-    cid_body["Word"] = Word_name
     cid_body["PartsOfSpeech"] = PartsOfSpeech_name
+    print("Added PartsOfSpeech : " + PartsOfSpeech_name)
     #Get Phonetic Symbol and Sound
     AudiolinksPosition_UK = FindElement(Headerdata, "span", "class", "uk dpron-i")
     AudiolinksPosition_US = FindElement(Headerdata, "span", "class", "us dpron-i")
     #Some dictionary word record don't have record. it need condition:
     if AudiolinksPosition_UK:
         Soundlink_UK_name = "https://dictionary.cambridge.org" + FindElement(AudiolinksPosition_UK, 'source', "type", "audio/mpeg")['src']
-        PhoneticSymbol_UK_name = "/" + FindElement(AudiolinksPosition_UK, "span", "class", "ipa dipa lpr-2 lpl-1").text + "/"
-        print(PhoneticSymbol_UK_name)
-        cid_body["PhoneticSymbol_UK"] = PhoneticSymbol_UK_name
+        #Check if Phonetic Symbol is available:
+        PhoneticSymbol_UK_block = FindElement(AudiolinksPosition_UK, "span", "class", "ipa dipa lpr-2 lpl-1")
+        if PhoneticSymbol_UK_block:
+            PhoneticSymbol_UK_name = "/" + PhoneticSymbol_UK_block.text + "/"
+            cid_body["PhoneticSymbol_UK"] = PhoneticSymbol_UK_name
         cid_body["Soundlink_UK"] = Soundlink_UK_name
-        print("Get UK sound successfully: ")
+        print("Added UK sound")
     if AudiolinksPosition_US:
         Soundlink_US_name = "https://dictionary.cambridge.org" + FindElement(AudiolinksPosition_US, 'source', "type", "audio/mpeg")['src']
-        PhoneticSymbol_US_name = "/" + FindElement(AudiolinksPosition_US, "span", "class", "ipa dipa lpr-2 lpl-1").text + "/" 
-        cid_body["PhoneticSymbol_US"] = PhoneticSymbol_US_name
+        PhoneticSymbol_US_block = FindElement(AudiolinksPosition_US, "span", "class", "ipa dipa lpr-2 lpl-1")
+        if PhoneticSymbol_US_block:
+            PhoneticSymbol_US_name = "/" + PhoneticSymbol_US_block.text + "/" 
+            cid_body["PhoneticSymbol_US"] = PhoneticSymbol_US_name
         cid_body["Soundlink_US"] = Soundlink_US_name
-        print("Get US sound successfully: ")
+        print("Added US sound")
     #Show console if it done
-    print("Added Header contents")    
+    print("[Added Header contents]")    
     print(cid_body)
     
     
@@ -123,8 +129,8 @@ def GetHeader(EntryWord_singleitem, cid_body):
 #----------------------------------------------------------------------------------------------------------------------------#
 #function GetBody(): Get all information from body
 #Definition, example, idiom, synonym
-def GetBody(EntryWord_singleitem, Output_dict, cid_body):
-    print("---Body step---")
+def GetBody(EntryWord_singleitem, cid_body):
+    print("===---Body step---===")
     #Get Body Data position
     BodyData = FindElement(EntryWord_singleitem,"div","class","pos-body")
     
@@ -133,49 +139,77 @@ def GetBody(EntryWord_singleitem, Output_dict, cid_body):
 
     for DefinitionBlock_singleitem in DefinitionBlock_multipleItems:
         DefinitionID = DefinitionBlock_singleitem["data-wl-senseid"]
-        print(DefinitionID)
-        GetDefinitionData(DefinitionBlock_singleitem, Output_dict, DefinitionID)
+        print("DefinitionID: " + DefinitionID)
+        cid_body["defi"+DefinitionID] = {}
+        GetDefinitionData(DefinitionBlock_singleitem, cid_body["defi"+DefinitionID])
     
-    GetMoreExampleData(DefinitionBlock_singleitem, Output_dict, DefinitionID)
-    GetExtraInfomationData(GetExtraInfomationData, Output_dict, DefinitionID)
-
+    #Check if Body content has More Example Block:
+    #Because this block id daccord has a lots of class use it. So macro need to update to find exactly it.
+    MoreExample_Block = FindExactElement(DefinitionBlock_singleitem,"div", "class", "daccord")
+    if MoreExample_Block:
+        GetMoreExampleData(MoreExample_Block, cid_body)
+    #Check if this block support:
+    ExtraInfomation_Block = FindElement(DefinitionBlock_singleitem,"div", "class", "smartt daccord")
+    if ExtraInfomation_Block:
+        GetExtraInfomationData(ExtraInfomation_Block, cid_body)
+    print("Added Body contents")
+    print("-------------------------------------------------------------------------------------")
 #----------------------------------------------------------------------------------------------------------------------------#
 #Function GetDefinitionData()
 #Get definition and example phreases from body block.
-def GetDefinitionData(DefinitionBlock_singleitem, Output_dict, cid_body):
+def GetDefinitionData(DefinitionBlock_singleitem, cid_body):
     #Get definition
     Definition_block = FindElement(DefinitionBlock_singleitem,"div", "class", "def ddef_d db")
-
     DefinitionWord_name = Definition_block.text
-    
+    cid_body["Definition: "] = DefinitionWord_name
+    print("Added definition: " + DefinitionWord_name)
+    #Create empty example list
+    cid_body["Example: "] = []
     #Get examples
-    Example_multipleItems = FindAllElements(DefinitionBlock_singleitem, "li" or "span", "class", "examp dexamp")
-    #Input data to dictionary
-    cid_body["Definition"] = DefinitionWord_name
+    #Check if examples is available:
+    Example_multipleItems = FindAllElements(DefinitionBlock_singleitem, "div" , "class", "examp dexamp")
+    if Example_multipleItems:
+        for Example_singleItem in Example_multipleItems:
+            #Add example to a list        
+            cid_body["Example: "].append(Example_singleItem.text)
+            print("Added example: " + Example_singleItem.text)
+    #Print console to inform added done
+    print("Added definition data block: ")
+    print(cid_body)
 
 
 #----------------------------------------------------------------------------------------------------------------------------#
 #Function GetMoreExampleData():
 #Get example phreases from Example Data block
-def GetMoreExampleData(DefinitionBlock_singleitem, Output_dict, cid_body):
-    #Check if this block support:
-    MoreExample_Block = FindElement(DefinitionBlock_singleitem,"div", "class", "daccord")
-    if MoreExample_Block:
-        #Get example phreases
-        MoreExample_multipleItems =  FindAllElements(MoreExample_Block, "li" or "span", "class", "examp dexamp")
+def GetMoreExampleData(MoreExample_Block, cid_body):
+    #Create empty MoreExampleList
+    cid_body["MoreExample"] = []
+    #Get example phreases
+    MoreExample_multipleItems =  FindAllElements(MoreExample_Block, "li", "class", "eg dexamp hax")
+    #print("MoreExampleBlock:")
+    print(MoreExample_multipleItems)
+    for MoreExample_singleImtems in MoreExample_multipleItems:
+        cid_body["MoreExample"].append(MoreExample_singleImtems.text)
+        print("Added more example block: " + MoreExample_singleImtems.text)
+    print("Added MoreExample block")
+    print(cid_body)
 
 #----------------------------------------------------------------------------------------------------------------------------#
 #Function GetExtraInformationData():
 #Get Synonyms, Related words from Thesaurus block
-def GetExtraInfomationData(DefinitionBlock_singleitem, Output_dict, cid_body):
-    #Check if this block support:
-    ExtraInfomation_Block = FindElement(DefinitionBlock_singleitem,"div", "class", "smartt daccord")
-    if ExtraInfomation_Block:
-        #Get Thesaurus: describe synonyms and related words
-        Thesaurus_name = FindElement(ExtraInfomation_Block,"div", "class", "daccord_lt")
-        #Get extra words
-        extrawords_multipleItems = FindAllElements(ExtraInfomation_Block, "span", "class", "hw haf")
-
+def GetExtraInfomationData(ExtraInfomation_Block, cid_body):
+    #Get Thesaurus: describe synonyms and related words
+    Thesaurus_name = FindElement(ExtraInfomation_Block,"div", "class", "daccord_lt").text
+    cid_body["Synonym"] = Thesaurus_name
+    #Get extra words
+    extrawords_multipleItems = FindAllElements(ExtraInfomation_Block, "span", "class", "hw haf")
+    #Create emtry extra word list:
+    cid_body["Extra words"] = []
+    for extrawords_singleItem in extrawords_multipleItems:
+        cid_body["Extra words"].append(extrawords_singleItem.text)
+        print("Added extra words: " + extrawords_singleItem.text)
+    print("Added ExtraInformation Block: ")
+    print(cid_body)
 #----------------------------------------------------------------------------------------------------------------------------#
 
 ScrapingData(DictionaryOnline_url,Output_dict)

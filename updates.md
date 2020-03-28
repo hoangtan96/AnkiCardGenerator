@@ -1,5 +1,6 @@
 #27-28/3/2020:
 - Update function: Import content to dictionary
+- Update xong exception of dictionary: Because sometimes don't have examples, phonetic symbol, ... We need to update some exception here
 
 #26-27/3/2020:
 - Update web structure
