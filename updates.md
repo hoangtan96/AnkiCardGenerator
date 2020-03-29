@@ -1,3 +1,7 @@
+#29/3/2020:
+- Update GUI template, GUI events controller
+- Update GUI event
+
 #27-28/3/2020:
 - Update function: Import content to dictionary
 - Update xong exception of dictionary: Because sometimes don't have examples, phonetic symbol, ... We need to update some exception here

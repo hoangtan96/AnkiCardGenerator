@@ -54,7 +54,7 @@ def FindExactElement(soup_url,object_name,type_name,id_name):
 def FindAllElements(soup_url,object_name,type_name,id_name):
     return soup_url.find_all(object_name, attrs= {type_name : id_name})
 
-DictionaryOnline_url = "https://dictionary.cambridge.org/dictionary/english/bunk"
+DictionaryOnline_url = "https://dictionary.cambridge.org/dictionary/english/something"
 
 #Get data from URL
 RequestURL = requests.get(DictionaryOnline_url)    
@@ -77,9 +77,9 @@ def ScrapingData(URL, Output_dict):
         #Get the multiple definition and locate it by id
         cid_body = EntryWord_singleitem.div["id"]
         #Create empty dictionary 
-        Output_dict[cid_body] = {}
-        GetHeader(EntryWord_singleitem, Output_dict[cid_body])
-        GetBody(EntryWord_singleitem, Output_dict[cid_body])
+        Output_dict["id"+cid_body] = {}
+        GetHeader(EntryWord_singleitem, Output_dict["id"+cid_body])
+        GetBody(EntryWord_singleitem, Output_dict["id"+cid_body])
         # Output_dict[cid_body] = cid_body_dictionary
 
 #----------------------------------------------------------------------------------------------------------------------------#
@@ -136,20 +136,20 @@ def GetBody(EntryWord_singleitem, cid_body):
     
     #In Body, there're multiple definition for 1 part of speech of Word. So we need to find all definition
     DefinitionBlock_multipleItems = FindAllElements(BodyData,"div", "class", "def-block ddef_block")
-
+    cid_body["Definitions"] = {}
     for DefinitionBlock_singleitem in DefinitionBlock_multipleItems:
         DefinitionID = DefinitionBlock_singleitem["data-wl-senseid"]
         print("DefinitionID: " + DefinitionID)
-        cid_body["defi"+DefinitionID] = {}
-        GetDefinitionData(DefinitionBlock_singleitem, cid_body["defi"+DefinitionID])
+        cid_body["Definitions"]["defi"+DefinitionID] = {}
+        GetDefinitionData(DefinitionBlock_singleitem, cid_body["Definitions"]["defi"+DefinitionID])
     
     #Check if Body content has More Example Block:
     #Because this block id daccord has a lots of class use it. So macro need to update to find exactly it.
-    MoreExample_Block = FindExactElement(DefinitionBlock_singleitem,"div", "class", "daccord")
+    MoreExample_Block = FindExactElement(BodyData,"div", "class", "daccord")
     if MoreExample_Block:
         GetMoreExampleData(MoreExample_Block, cid_body)
     #Check if this block support:
-    ExtraInfomation_Block = FindElement(DefinitionBlock_singleitem,"div", "class", "smartt daccord")
+    ExtraInfomation_Block = FindElement(BodyData,"div", "class", "smartt daccord")
     if ExtraInfomation_Block:
         GetExtraInfomationData(ExtraInfomation_Block, cid_body)
     print("Added Body contents")
@@ -161,17 +161,17 @@ def GetDefinitionData(DefinitionBlock_singleitem, cid_body):
     #Get definition
     Definition_block = FindElement(DefinitionBlock_singleitem,"div", "class", "def ddef_d db")
     DefinitionWord_name = Definition_block.text
-    cid_body["Definition: "] = DefinitionWord_name
+    cid_body["Definition"] = DefinitionWord_name
     print("Added definition: " + DefinitionWord_name)
     #Create empty example list
-    cid_body["Example: "] = []
+    cid_body["Example"] = []
     #Get examples
     #Check if examples is available:
     Example_multipleItems = FindAllElements(DefinitionBlock_singleitem, "div" , "class", "examp dexamp")
     if Example_multipleItems:
         for Example_singleItem in Example_multipleItems:
             #Add example to a list        
-            cid_body["Example: "].append(Example_singleItem.text)
+            cid_body["Example"].append(Example_singleItem.text)
             print("Added example: " + Example_singleItem.text)
     #Print console to inform added done
     print("Added definition data block: ")
@@ -211,16 +211,44 @@ def GetExtraInfomationData(ExtraInfomation_Block, cid_body):
     print("Added ExtraInformation Block: ")
     print(cid_body)
 #----------------------------------------------------------------------------------------------------------------------------#
+#Function restructureDictionary:
+#This function help analyze easier when apply on GUI
+def restructureDictionary(input_dict):
 
-ScrapingData(DictionaryOnline_url,Output_dict)
-print("Added done")
-print(Output_dict)
-dictionary_test = {}
-cid = 1
+    i = 1
+    output_dict = {}
+    output_dict[i] = {}
+    for singleitem in input_dict:
+    # if len(singleitem["Definitions"]) >= 2 :
+        print(singleitem)
+        for definition_singleitem in input_dict[singleitem]["Definitions"]:
+            #Create empty dict before add
+            output_dict[i] = {}
+            output_dict[i]["Word"] = input_dict[singleitem]["Word"]
+            output_dict[i]["PartsOfSpeech"] = input_dict[singleitem]["PartsOfSpeech"]
+            if "PhoneticSymbol_UK" in input_dict[singleitem]:
+                output_dict[i]["PhoneticSymbol_UK"] = input_dict[singleitem]["PhoneticSymbol_UK"]
+            if "Soundlink_UK" in input_dict[singleitem]:
+                output_dict[i]["Soundlink_UK"] = input_dict[singleitem]["Soundlink_UK"]
+            if "PhoneticSymbol_US" in input_dict[singleitem]:
+                output_dict[i]["PhoneticSymbol_US"] = input_dict[singleitem]["PhoneticSymbol_US"]
+            if "Soundlink_US" in input_dict[singleitem]:
+                output_dict[i]["Soundlink_US"] = input_dict[singleitem]["Soundlink_US"]
+            print(definition_singleitem)
+            print(input_dict[singleitem]["Definitions"][definition_singleitem])
+            output_dict[i]["Definition"] = input_dict[singleitem]["Definitions"][definition_singleitem]["Definition"]
+            output_dict[i]["Example"] = input_dict[singleitem]["Definitions"][definition_singleitem]["Example"]
+            if "Synonym" in input_dict[singleitem]:
+                output_dict[i]["Synonym"] = input_dict[singleitem]["Synonym"]
+            if "Extra words" in input_dict[singleitem]:
+                output_dict[i]["Extra words"] = input_dict[singleitem]["Extra words"]
+            i = i+1
+    return output_dict
 
-
-
-
+def WordData_dict(URL, Output_dict):
+    ScrapingData(URL, Output_dict)
+    temp_dict = restructureDictionary(Output_dict)
+    return temp_dict
 
 """
 #Word =
